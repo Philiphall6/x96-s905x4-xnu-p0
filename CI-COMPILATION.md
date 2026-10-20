@@ -7,9 +7,10 @@ porte de validation sans toucher à la X96.
 
 Il utilise des versions épinglées :
 
-- runner `macos-15` et Xcode 16.2. Cette combinaison est un essai de
-  compatibilité : le runner macOS 14/Xcode 15.4 est en cours de dépréciation
-  et restait sans capacité disponible ;
+- runner Intel `macos-15-intel` et Xcode 16.2. Cette combinaison est un essai
+  de compatibilité : les essais macOS 14 puis macOS 15 ARM64 n'ont obtenu
+  aucun runner, et GitHub a explicitement signalé une contrainte de capacité
+  sur sa flotte macOS ARM64 ;
 - `blacktop/darwin-xnu-build` commit
   `663906528d1cd5ea8fde7de6f16de73db9511549` ;
 - macOS 13.5 / XNU 8796 ;
