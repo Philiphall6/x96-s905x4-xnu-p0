@@ -28,6 +28,10 @@ avoir modifié la box ni l'image Android stable :
   EL2, FDT dans `x0`, magie `0xD00DFEED` et fin de mesure validés.
 - le contrôle automatique `tools/verify_p0.py` confirme la cohérence entre les
   deux ADT, le profil matériel et le code source de la console série.
+- la compilation XNU complète `DEVELOPMENT_ARM64_X96SC2` réussit sur le runner
+  GitHub Actions Intel macOS 15 avec Xcode 16.2 ; l'exécutable obtenu est un
+  Mach-O 64 bits ARM64. Le premier échec provenait uniquement de l'absence de
+  capacité du runner macOS ARM64 et n'avait exécuté aucune étape du build.
 
 Le test QEMU termine avec le code 0 et affiche :
 
@@ -69,10 +73,18 @@ MEASUREMENT COMPLETE
 - patch local : `out/source/0001-x96sc2-add-single-core-XNU-P0-target-with-GICv2.patch`
 - patch UART : `out/source/0002-x96sc2-add-firmware-configured-uart-console.patch`
 - bundle Git local : `out/source/xnu-x96sc2-p0.bundle`
+- build GitHub Actions réussi :
+  `https://github.com/Philiphall6/x96-s905x4-xnu-p0/actions/runs/39470717273`
+- commit du dépôt de build : `74b414a`
+- `kernel.development.x96sc2`
+  - format : Mach-O 64 bits, ARM64, exécutable
+  - taille : `16432688` octets
+  - SHA-256 : `5bccf3a3aee242f24f4f075f1a6d38af09b698dbd1d26ed43996791812530ca1`
+- archive GitHub `xnu-x96sc2-p0.zip`
+  - SHA-256 : `504370c318320c0c71485d7ebcee072faa63319387fd44b56862a2bae4977a09`
 
 ## Ce qui n'est pas encore validé
 
-- compilation complète de XNU avec Xcode/macOS ;
 - entrée réelle fournie par BL33/U-Boot sur la X96 ;
 - fréquence réelle de `CNTFRQ_EL0` sur la box ;
 - carte des réservations ATF/BL31 et emplacement RAM sûr ;
@@ -87,11 +99,10 @@ Les ADT et valeurs framebuffer matériels portent donc explicitement le statut
 
 ## Prochaine porte de validation
 
-1. Compiler `DEVELOPMENT_ARM64_X96SC2` sur le runner macOS/Xcode compatible
-   XNU 8796. Le workflow préparé est `.github/workflows/xnu-x96.yml` ; il
-   n'est pas lancé tant que le propriétaire n'a pas placé ce dossier dans son
-   propre dépôt GitHub.
-2. Démarrer ce noyau sous QEMU GICv2 avec l'ADT QEMU.
+1. Emballer les dépendances de test, puis démarrer le noyau XNU compilé sous
+   QEMU GICv2 avec l'ADT QEMU et un ramdisk minimal.
+2. Capturer la première sortie série XNU et corriger le premier arrêt observé
+   sans masquer les erreurs du noyau.
 3. Entrer volontairement dans le Fastboot de la X96 puis exécuter uniquement
    `fastboot-ram-probe/inspect-fastboot.sh` pour identifier l'appareil.
 4. Si le bootloader annonce une cible compatible, tester le shim uniquement
