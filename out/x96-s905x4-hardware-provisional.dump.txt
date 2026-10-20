@@ -1,0 +1,85 @@
+device-tree {
+  AAPL,phandle = 0xc
+  compatible = 'x96,max-plus-ultra|amlogic,sc2|ARM,v8'
+  model = 'X96 Max+ Ultra'
+  target-type = 'X96SC2'
+  manufacturer = 'Amlogic reference board'
+  #address-cells = 0x2
+  #size-cells = 0x2
+  chosen {
+    AAPL,phandle = 0x1
+    dram-base = '|||@'
+    dram-size = '||| '
+    random-seed = <0x89c93e4f2b24115a 0x73a36fb1b87c5f55 0xcfbeeac7327416c 0xca1f795eadef905d 0x1138f8818e238896 0xcd62bdca0d4aa992 0xe94e400457b53990 0xc0ff940a14a07299>
+    debug-enabled = 0x1
+    firmware-version = 'x96-xnu-shim-p0'
+    system-firmware-version = 'x96-xnu-shim-p0'
+    memory-map {
+      AAPL,phandle = 0x2
+    }
+  }
+  defaults {
+    AAPL,phandle = 0xb
+    no-effaceable-storage = 0x1
+  }
+  cpus {
+    AAPL,phandle = 0x4
+    #address-cells = 0x1
+    #size-cells = ''
+    cpu0 {
+      AAPL,phandle = 0x3
+      device_type = 'cpu'
+      compatible = 'arm,cortex-a55|ARM,v8'
+      reg = ''
+      cpu-id = ''
+      cluster-id = ''
+      cluster-core-id = ''
+      state = 'running'
+      timebase-frequency = 0x16e3600
+      fixed-frequency = 0x16e3600
+    }
+  }
+  arm-io {
+    AAPL,phandle = 0x6
+    device_type = 'x96-io'
+    compatible = 'x96-io|arm-io'
+    #address-cells = 0x2
+    #size-cells = 0x2
+    ranges = <0x0 0xfe000000 0x2000000>
+    gic {
+      AAPL,phandle = 0x5
+      compatible = 'arm,gic-400|arm,cortex-a15-gic'
+      interrupt-controller = <>
+      gic-version = 0x2
+      virtual-timer-intid = 0x1b
+      reg = <0x1f01000 0x1000 0x1f02000 0x100>
+    }
+  }
+  x96-fbcon {
+    AAPL,phandle = 0x7
+    reg = <0xdf800000 0x800000>
+    width = 0x780
+    height = 0x438
+    stride = 0x1e00
+    depth = ' '
+  }
+  x96-uart {
+    AAPL,phandle = 0x8
+    reg = <0xfe07a000 0x18>
+    compatible = 'amlogic,meson-uart'
+  }
+  x96-emmc {
+    AAPL,phandle = 0x9
+    reg = <0xfe08c000 0x800>
+    compatible = 'amlogic,meson-axg-mmc'
+  }
+  x96-ethernet {
+    AAPL,phandle = 0xa
+    reg = <0xfdc00000 0x10000>
+    compatible = 'snps,dwmac-3.70a'
+    interrupt = 'J'
+  }
+}
+out/x96-s905x4-hardware-provisional.adt: 3348 bytes
+sha256=ec522aff35a2789fead23e37a82bab25a2afd0a961448c2db531d754a1887716
+mode=x96-hardware-provisional

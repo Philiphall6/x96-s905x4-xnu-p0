@@ -1,0 +1,70 @@
+{
+  "board": "X96 Max+ Ultra",
+  "soc": "Amlogic S905X4 / SC2",
+  "source_dtb": "/home/mint/x96-portage-sources/build/kernel-5.15-q11/dtb-analysis/slimboxtv-4g.dts",
+  "cpu": {
+    "architecture": "arm64",
+    "cores": 4,
+    "compatible": "arm,cortex-a55",
+    "mpidr_aff0": [0, 1, 2, 3],
+    "page_16k_capability": "expected from Cortex-A55; verify on hardware"
+  },
+  "psci": {
+    "compatible": "arm,psci-0.2",
+    "method": "smc"
+  },
+  "timer": {
+    "virtual_intid": 27,
+    "counter_frequency_hz": 24000000,
+    "counter_frequency_status": "provisional; read CNTFRQ_EL0 before hardware boot"
+  },
+  "interrupt_controller": {
+    "type": "ARM GIC-400 / GICv2",
+    "distributor": "0xfff01000",
+    "distributor_size": "0x1000",
+    "cpu_interface": "0xfff02000",
+    "cpu_interface_size": "0x100"
+  },
+  "memory": {
+    "linux_usable_start": "0x00000000",
+    "linux_usable_size": "0xf0000000",
+    "bringup_base": "0x40000000",
+    "bringup_size": "0x20000000",
+    "bringup_status": "QEMU-only until U-Boot/ATF live reservations are measured"
+  },
+  "framebuffer": {
+    "address": "0xdf800000",
+    "reserved_size": "0x00800000",
+    "width": 1920,
+    "height": 1080,
+    "stride_bytes": 7680,
+    "pixel_format": "provisional BGRA8888",
+    "source": "SlimBOX DT logo_addr and linux,meson-fb reservation"
+  },
+  "uart": {
+    "address": "0xfe07a000",
+    "size": "0x18",
+    "compatible": "amlogic,meson-uart",
+    "status": "enabled in SlimBOX DT; physical pins must be confirmed"
+  },
+  "emmc": {
+    "controller": "amlogic,meson-axg-mmc",
+    "address": "0xfe08c000",
+    "size": "0x800",
+    "bus_width": 8,
+    "bringup_policy": "do not access until the controller driver is implemented and tested read-only"
+  },
+  "ethernet": {
+    "controller": "snps,dwmac-3.70a",
+    "address": "0xfdc00000",
+    "size": "0x10000",
+    "interrupt": 74,
+    "mode": "RMII / internal 100M PHY"
+  },
+  "boot": {
+    "android_boot_header": 3,
+    "entry_exception_level": "unknown; shim must detect EL2 and safely enter EL1",
+    "hardware_test_policy": "temporary SD/USB or RAM-only boot only"
+  }
+}
+

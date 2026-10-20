@@ -1,0 +1,175 @@
+From 91851b1261ba7b78366bd0909322953dc892f33e Mon Sep 17 00:00:00 2001
+From: X96 XNU Port <x96-xnu-local@localhost>
+Date: Tue, 20 Oct 2026 16:41:08 +0000
+Subject: [PATCH] x96sc2: add firmware-configured Meson and QEMU UART console
+
+---
+ pexpert/arm/pe_serial.c      | 130 +++++++++++++++++++++++++++++++++++
+ pexpert/pexpert/arm/protos.h |   3 +-
+ 2 files changed, 132 insertions(+), 1 deletion(-)
+
+diff --git a/pexpert/arm/pe_serial.c b/pexpert/arm/pe_serial.c
+index 3266de5..9885b4b 100644
+--- a/pexpert/arm/pe_serial.c
++++ b/pexpert/arm/pe_serial.c
+@@ -700,6 +700,132 @@ register_serial_functions(struct pe_serial_functions *fns)
+ 
+ /*****************************************************************************/
+ 
++#if defined(X96SC2)
++
++/*
++ * Firmware-configured polling console for the X96 hardware ADT and its QEMU
++ * ADT.  Deliberately do not touch clocks, pinmux or line configuration: BL33
++ * owns that setup on hardware, while QEMU exposes an already enabled PL011.
++ */
++enum x96_uart_kind {
++	X96_UART_NONE = 0,
++	X96_UART_MESON,
++	X96_UART_PL011,
++};
++
++#define MESON_UART_WFIFO          0x00
++#define MESON_UART_RFIFO          0x04
++#define MESON_UART_STATUS         0x0c
++#define MESON_UART_RX_EMPTY       (1u << 20)
++#define MESON_UART_TX_FULL        (1u << 21)
++
++#define PL011_UART_DR             0x00
++#define PL011_UART_FR             0x18
++#define PL011_UART_RX_EMPTY       (1u << 4)
++#define PL011_UART_TX_FULL        (1u << 5)
++
++static vm_offset_t x96_uart_base;
++static enum x96_uart_kind x96_uart_kind;
++
++static uint32_t
++x96_uart_read(uint32_t offset)
++{
++	return *(volatile uint32_t *)(x96_uart_base + offset);
++}
++
++static void
++x96_uart_write(uint32_t offset, uint32_t value)
++{
++	*(volatile uint32_t *)(x96_uart_base + offset) = value;
++}
++
++static void
++x96_uart_init(void)
++{
++	/* Keep the exact firmware configuration. */
++	__asm__ volatile("dsb sy" ::: "memory");
++}
++
++static unsigned int
++x96_uart_transmit_ready(void)
++{
++	if (x96_uart_kind == X96_UART_MESON) {
++		return (x96_uart_read(MESON_UART_STATUS) & MESON_UART_TX_FULL) == 0;
++	}
++	return (x96_uart_read(PL011_UART_FR) & PL011_UART_TX_FULL) == 0;
++}
++
++static void
++x96_uart_transmit_data(uint8_t c)
++{
++	if (x96_uart_kind == X96_UART_MESON) {
++		x96_uart_write(MESON_UART_WFIFO, c);
++	} else {
++		x96_uart_write(PL011_UART_DR, c);
++	}
++}
++
++static unsigned int
++x96_uart_receive_ready(void)
++{
++	if (x96_uart_kind == X96_UART_MESON) {
++		return (x96_uart_read(MESON_UART_STATUS) & MESON_UART_RX_EMPTY) == 0;
++	}
++	return (x96_uart_read(PL011_UART_FR) & PL011_UART_RX_EMPTY) == 0;
++}
++
++static uint8_t
++x96_uart_receive_data(void)
++{
++	if (x96_uart_kind == X96_UART_MESON) {
++		return (uint8_t)x96_uart_read(MESON_UART_RFIFO);
++	}
++	return (uint8_t)x96_uart_read(PL011_UART_DR);
++}
++
++SECURITY_READ_ONLY_LATE(static struct pe_serial_functions) x96_uart_serial_functions =
++{
++	.init = x96_uart_init,
++	.transmit_ready = x96_uart_transmit_ready,
++	.transmit_data = x96_uart_transmit_data,
++	.receive_ready = x96_uart_receive_ready,
++	.receive_data = x96_uart_receive_data,
++	.device = SERIAL_X96_UART
++};
++
++static void
++x96_uart_probe(void)
++{
++	DTEntry entry;
++	uint64_t const *reg;
++	char const *compatible;
++	unsigned int size;
++
++	if (SecureDTFindEntry("name", "x96-uart", &entry) != kSuccess ||
++	    SecureDTGetProperty(entry, "reg", (void const **)&reg, &size) != kSuccess ||
++	    size < 2 * sizeof(*reg) || reg[1] < 0x18 ||
++	    SecureDTGetProperty(entry, "compatible", (void const **)&compatible, &size) != kSuccess) {
++		return;
++	}
++
++	if (!strcmp(compatible, "amlogic,meson-uart")) {
++		x96_uart_kind = X96_UART_MESON;
++	} else if (!strcmp(compatible, "arm,pl011")) {
++		x96_uart_kind = X96_UART_PL011;
++	} else {
++		return;
++	}
++
++	x96_uart_base = ml_io_map(reg[0], reg[1]);
++	if (x96_uart_base != 0) {
++		register_serial_functions(&x96_uart_serial_functions);
++	}
++}
++
++#endif /* X96SC2 */
++
++/*****************************************************************************/
++
+ /*
+  * sweet: framebuffer "serial" for boards with no usable UART (the Redmi Note
+  * 10 Pro's debug UART engine runs in SPI mode). kprintf output is drawn onto
+@@ -924,6 +1050,10 @@ serial_init(void)
+ 
+ 	fbcon_probe();
+ 
++#if defined(X96SC2)
++	x96_uart_probe();
++#endif /* X96SC2 */
++
+ #ifdef PI3_UART
+ 	if (SecureDTFindEntry("name", "gpio", &entryP) == kSuccess) {
+ 		SecureDTGetProperty(entryP, "reg", (void const **)&reg_prop, &prop_size);
+diff --git a/pexpert/pexpert/arm/protos.h b/pexpert/pexpert/arm/protos.h
+index 0e01c14..9b512cc 100644
+--- a/pexpert/pexpert/arm/protos.h
++++ b/pexpert/pexpert/arm/protos.h
+@@ -57,7 +57,8 @@ typedef enum serial_device {
+ 	SERIAL_PI3_UART=0x4,
+ 	SERIAL_VMAPPLE_UART=0x8,
+ 	SERIAL_DCC_UART=0x10,
+-	SERIAL_SWEET_FBCON=0x20
++	SERIAL_SWEET_FBCON=0x20,
++	SERIAL_X96_UART=0x40
+ } serial_device_t;
+ 
+ kern_return_t serial_irq_enable(serial_device_t device);
+-- 
+2.43.0
+

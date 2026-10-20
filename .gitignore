@@ -1,0 +1,16 @@
+# Third-party checkouts are pinned by commit in the documentation/workflow.
+/darwin-xnu-build/
+/ios-sweet-reference/
+/xnu-8796.141.3/
+
+# Host-local toolchains and package caches.
+/local-tools/
+
+# Generated binaries, including the 64 MiB RAM-only Fastboot container.
+/fastboot-ram-probe/out/
+/measure-shim/out/
+/preflight-qemu/out/
+
+# Python cache files.
+__pycache__/
+*.py[cod]

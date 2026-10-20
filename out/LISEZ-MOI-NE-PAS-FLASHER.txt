@@ -1,0 +1,21 @@
+X96 XNU/tvOS — JALON P0 — NE PAS FLASHER
+==========================================
+
+Ce dossier ne contient AUCUNE image compatible Amlogic USB Burn Tool.
+Les fichiers .adt et x96-preflight.bin sont des artefacts d'ingénierie et ne
+doivent être écrits dans aucune partition de la X96.
+
+Résultat actuel :
+- passage EL2 vers EL1 validé sous QEMU Cortex-A55 ;
+- GICv2 mémoire validé ;
+- timer virtuel INTID 27 validé ;
+- shim de mesure S905X4 compilé et vérifié statiquement, mais pas encore
+  exécuté sur le matériel ;
+- chemin Image ARM64/FDT de cette sonde démarré avec succès sous QEMU ;
+- console XNU double : framebuffer plus UART Meson/PL011 sélectionné par ADT ;
+- conteneur boot v3 RAM-only construit et AVB vérifié ; son nom contient
+  FASTBOOT_BOOT_ONLY_NE_JAMAIS_FLASHER et il n'a pas été envoyé à la box ;
+- cible XNU X96SC2 créée, mais compilation XNU complète macOS encore requise ;
+- aucun démarrage XNU réel sur la box à ce stade.
+
+Lire PORTAGE-P0-ETAT.md pour le détail et les prochaines validations.
