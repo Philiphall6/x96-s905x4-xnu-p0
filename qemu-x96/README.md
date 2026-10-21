@@ -27,10 +27,11 @@ X96_QEMU_SECONDS=30 ./qemu-x96/prepare-and-run.sh KERNEL NOUVEAU_DOSSIER
 ```
 
 Le dossier `runtime` contient la console série, les registres CPU, les deux
-framebuffers bruts et `result.json`. La machine QEMU possède 3 Gio uniquement
-pour couvrir le framebuffer précoce provisoire à `0xdff80000`; les `boot_args`
-annoncent toujours exactement 1 Gio de RAM gérée à XNU, de `0x40000000` à
-`0x80000000`.
+framebuffers bruts et `result.json`. En cas de panique, `symbols.txt` associe
+automatiquement le PC, le LR et l'appelant aux symboles du noyau. La machine
+QEMU possède 3 Gio uniquement pour couvrir le framebuffer précoce provisoire à
+`0xdff80000`; les `boot_args` annoncent toujours exactement 1 Gio de RAM gérée
+à XNU, de `0x40000000` à `0x80000000`.
 
 Le noyau requis doit inclure le patch
 `0003-x96sc2-enable-mockfs-RAM-disk-root-for-QEMU.patch`. Un noyau antérieur

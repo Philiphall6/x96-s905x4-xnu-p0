@@ -26,3 +26,7 @@ python3 "$PROJECT/tools/mkadt_x96.py" "$RUN/prepared/x96-qemu.adt" \
 python3 "$BASE/prepare.py" "$KERNEL" "$RUN/prepared/x96-qemu.adt" \
     "$RUN/prepared" --ramdisk "$INIT"
 python3 "$BASE/run.py" "$RUN/prepared" "$RUN/runtime" --seconds "$RUN_SECONDS"
+if grep -q 'panic(' "$RUN/runtime/serial.txt"; then
+    python3 "$BASE/symbolize.py" "$KERNEL" \
+        --serial "$RUN/runtime/serial.txt" > "$RUN/runtime/symbols.txt"
+fi
