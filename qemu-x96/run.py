@@ -37,6 +37,19 @@ def capture(monitor: Path, output: Path, layout: dict) -> None:
         stream, "human-monitor-command", {"command-line": "info registers"}
     )
     (output / "registers.txt").write_text(registers, encoding="utf-8")
+    registers_all = qmp_call(
+        stream, "human-monitor-command", {"command-line": "info registers -a"}
+    )
+    (output / "registers-all.txt").write_text(registers_all, encoding="utf-8")
+    for name, address, size in (
+        ("gic-distributor.raw", 0x08000000, 0x1000),
+        ("gic-cpu-interface.raw", 0x08010000, 0x1000),
+    ):
+        qmp_call(
+            stream,
+            "pmemsave",
+            {"val": address, "size": size, "filename": str(output / name)},
+        )
     for name, address in (
         ("framebuffer.raw", layout["framebuffer_address"]),
         ("early-framebuffer.raw", layout["early_framebuffer_address"]),
