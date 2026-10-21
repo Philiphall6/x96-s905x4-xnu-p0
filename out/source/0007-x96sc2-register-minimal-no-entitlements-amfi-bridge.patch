@@ -1,4 +1,4 @@
-From 42ca377892fef5a5a6fbbbc848c090f134a99c22 Mon Sep 17 00:00:00 2001
+From 1c97ee92e462078d779d6207297986e745230d05 Mon Sep 17 00:00:00 2001
 From: X96 XNU Port <x96-xnu-local@localhost>
 Date: Wed, 21 Oct 2026 05:49:17 +0000
 Subject: [PATCH] x96sc2: register minimal no-entitlements AMFI bridge
@@ -24,7 +24,7 @@ index 480b84e..42db147 100644
  bsd/kern/kern_authorization.c		standard
 diff --git a/bsd/kern/x96_minimal_amfi.c b/bsd/kern/x96_minimal_amfi.c
 new file mode 100644
-index 0000000..98c79db
+index 0000000..c351d17
 --- /dev/null
 +++ b/bsd/kern/x96_minimal_amfi.c
 @@ -0,0 +1,169 @@
@@ -41,9 +41,9 @@ index 0000000..98c79db
 + */
 +
 +#include <kern/startup.h>
++#include <mach/kern_return.h>
 +#include <libkern/amfi/amfi.h>
 +#include <libkern/libkern.h>
-+#include <mach/kern_return.h>
 +
 +static void
 +x96_entitlements_invalidate(__unused void *entitlements)
