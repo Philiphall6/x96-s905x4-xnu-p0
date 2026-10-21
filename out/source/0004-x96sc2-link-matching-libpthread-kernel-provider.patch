@@ -1,0 +1,153 @@
+From d477e777de86da9a6089e013aa987aba093925c8 Mon Sep 17 00:00:00 2001
+From: X96 XNU Port <x96-xnu-local@localhost>
+Date: Wed, 21 Oct 2026 04:45:38 +0000
+Subject: [PATCH] x96sc2: link matching libpthread kernel provider
+
+---
+ bsd/conf/Makefile.template        |  9 +++++++++
+ bsd/conf/files                    |  3 +++
+ bsd/pthread/x96_pthread_compat.h  | 22 ++++++++++++++++++++++
+ bsd/pthread/x96_pthread_init.c    | 24 ++++++++++++++++++++++++
+ bsd/pthread/x96_pthread_support.c |  5 +++++
+ bsd/pthread/x96_pthread_synch.c   |  5 +++++
+ bsd/sys/pthread_internal.h        |  5 +++++
+ 7 files changed, 73 insertions(+)
+ create mode 100644 bsd/pthread/x96_pthread_compat.h
+ create mode 100644 bsd/pthread/x96_pthread_init.c
+ create mode 100644 bsd/pthread/x96_pthread_support.c
+ create mode 100644 bsd/pthread/x96_pthread_synch.c
+
+diff --git a/bsd/conf/Makefile.template b/bsd/conf/Makefile.template
+index 4b83160..78a4277 100644
+--- a/bsd/conf/Makefile.template
++++ b/bsd/conf/Makefile.template
+@@ -44,6 +44,15 @@ CFLAGS+= -include meta_features.h -DDRIVER_PRIVATE \
+         -Warray-bounds-pointer-arithmetic
+ SFLAGS+= -include meta_features.h
+ 
++# X96SC2 links the matching open-source libpthread provider into the kernel.
++ifeq ($(CURRENT_MACHINE_CONFIG),X96SC2)
++X96_PTHREAD_ROOT = $(SRCROOT)/bsd/pthread/x96_libpthread
++X96_PTHREAD_INC = -I$(X96_PTHREAD_ROOT) -I$(X96_PTHREAD_ROOT)/private -I$(X96_PTHREAD_ROOT)/include
++x96_pthread_init.o_INCFLAGS = $(X96_PTHREAD_INC)
++x96_pthread_support.o_INCFLAGS = $(X96_PTHREAD_INC)
++x96_pthread_synch.o_INCFLAGS = $(X96_PTHREAD_INC)
++endif
++
+ #
+ # Directories for mig generated files
+ #
+diff --git a/bsd/conf/files b/bsd/conf/files
+index 4427401..480b84e 100644
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -361,6 +361,9 @@ bsd/security/audit/audit_syscalls.c		standard
+ bsd/security/audit/audit_worker.c		optional config_audit
+ 
+ bsd/pthread/pthread_shims.c		standard
++bsd/pthread/x96_pthread_init.c		standard
++bsd/pthread/x96_pthread_support.c	standard
++bsd/pthread/x96_pthread_synch.c		standard
+ bsd/pthread/pthread_priority.c		standard
+ bsd/pthread/pthread_workqueue.c		standard
+ 
+diff --git a/bsd/pthread/x96_pthread_compat.h b/bsd/pthread/x96_pthread_compat.h
+new file mode 100644
+index 0000000..00f4fe5
+--- /dev/null
++++ b/bsd/pthread/x96_pthread_compat.h
+@@ -0,0 +1,22 @@
++/* Compatibility view for the built-in X96SC2 libpthread kernel provider. */
++#ifndef X96_PTHREAD_COMPAT_H
++#define X96_PTHREAD_COMPAT_H
++
++#undef BSD_KERNEL_PRIVATE
++#undef XNU_KERNEL_PRIVATE
++#define __PTHREAD_EXPOSE_INTERNALS__ 1
++#define NEEDS_SCHED_CALL_T 1
++
++/* The provider uses the external seven-argument VM fault interface. */
++#define vm_fault vm_fault_external
++
++/* Keep provider globals distinct from the callback side already in XNU. */
++#define pthread_kern x96_pthread_kern
++#define current_uthread x96_pthread_current_uthread
++#define pthread_start x96_pthread_start
++#define pthread_stop x96_pthread_stop
++
++extern void *x96_pthread_log_image __asm("__mh_execute_header");
++#define __dso_handle x96_pthread_log_image
++
++#endif /* X96_PTHREAD_COMPAT_H */
+diff --git a/bsd/pthread/x96_pthread_init.c b/bsd/pthread/x96_pthread_init.c
+new file mode 100644
+index 0000000..e295b6c
+--- /dev/null
++++ b/bsd/pthread/x96_pthread_init.c
+@@ -0,0 +1,24 @@
++/* Built-in provider from Apple libpthread-514.100.2, paired with XNU 8796. */
++#if defined(ARM64_BOARD_CONFIG_X96SC2)
++#include "x96_pthread_compat.h"
++#include "x96_libpthread/kern/kern_init.c"
++
++_Static_assert(sizeof(struct ksyn_waitq_element) == 56,
++    "X96SC2 pthread storage no longer matches its provider");
++
++#define XNU_KERNEL_PRIVATE 1
++#include <kern/startup.h>
++#include <pexpert/pexpert.h>
++
++__startup_func
++static void
++x96_pthread_register(void)
++{
++	kern_return_t result = x96_pthread_start(NULL, NULL);
++	if (result != KERN_SUCCESS || x96_pthread_kern == NULL) {
++		panic("X96SC2: pthread provider registration failed: %d", result);
++	}
++	kprintf("X96SC2 pthread: libpthread-514.100.2 registered\n");
++}
++STARTUP(EARLY_BOOT, STARTUP_RANK_SECOND, x96_pthread_register);
++#endif /* ARM64_BOARD_CONFIG_X96SC2 */
+diff --git a/bsd/pthread/x96_pthread_support.c b/bsd/pthread/x96_pthread_support.c
+new file mode 100644
+index 0000000..635df60
+--- /dev/null
++++ b/bsd/pthread/x96_pthread_support.c
+@@ -0,0 +1,5 @@
++/* Built-in provider from Apple libpthread-514.100.2, paired with XNU 8796. */
++#if defined(ARM64_BOARD_CONFIG_X96SC2)
++#include "x96_pthread_compat.h"
++#include "x96_libpthread/kern/kern_support.c"
++#endif /* ARM64_BOARD_CONFIG_X96SC2 */
+diff --git a/bsd/pthread/x96_pthread_synch.c b/bsd/pthread/x96_pthread_synch.c
+new file mode 100644
+index 0000000..f47cb53
+--- /dev/null
++++ b/bsd/pthread/x96_pthread_synch.c
+@@ -0,0 +1,5 @@
++/* Built-in provider from Apple libpthread-514.100.2, paired with XNU 8796. */
++#if defined(ARM64_BOARD_CONFIG_X96SC2)
++#include "x96_pthread_compat.h"
++#include "x96_libpthread/kern/kern_synch.c"
++#endif /* ARM64_BOARD_CONFIG_X96SC2 */
+diff --git a/bsd/sys/pthread_internal.h b/bsd/sys/pthread_internal.h
+index 42e23d8..414e00b 100644
+--- a/bsd/sys/pthread_internal.h
++++ b/bsd/sys/pthread_internal.h
+@@ -34,7 +34,12 @@
+ 
+ struct ksyn_waitq_element {
+ #if __LP64__
++	#if defined(ARM64_BOARD_CONFIG_X96SC2)
++	/* libpthread-514.100.2 has one trailing uthread pointer. */
++	char opaque[56];
++#else
+ 	char opaque[48];
++#endif
+ #else
+ 	char opaque[32];
+ #endif
+-- 
+2.43.0
+

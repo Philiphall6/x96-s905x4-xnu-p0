@@ -32,6 +32,10 @@ jobs:
              dxb/patches/0001-x96sc2-uart.patch
           cp out/source/0003-x96sc2-enable-mockfs-RAM-disk-root-for-QEMU.patch \
              dxb/patches/0002-x96sc2-mockfs.patch
+          cp out/source/0004-stage-x96sc2-libpthread.sh \
+             dxb/patches/0003-x96sc2-libpthread-stage.sh
+          cp out/source/0004-x96sc2-link-matching-libpthread-kernel-provider.patch \
+             dxb/patches/0003-x96sc2-libpthread.patch
           sed -i '' \
             's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' \
             dxb/build.sh
