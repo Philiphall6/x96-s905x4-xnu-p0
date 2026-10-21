@@ -1,0 +1,121 @@
+From 91a60c4ddbe36f984d4628f778f73a1ed1999bf3 Mon Sep 17 00:00:00 2001
+From: X96 XNU Port <x96-xnu-local@localhost>
+Date: Wed, 21 Oct 2026 04:27:02 +0000
+Subject: [PATCH] x96sc2: enable mockfs RAM-disk root for QEMU
+
+---
+ bsd/miscfs/mockfs/mockfs_fsnode.c |  8 +++++---
+ bsd/miscfs/mockfs/mockfs_vfsops.c |  7 ++++++-
+ config/MASTER.arm64.x96sc2        |  2 +-
+ iokit/Kernel/IOService.cpp        | 21 ++++++++++++++++++++-
+ 4 files changed, 32 insertions(+), 6 deletions(-)
+
+diff --git a/bsd/miscfs/mockfs/mockfs_fsnode.c b/bsd/miscfs/mockfs/mockfs_fsnode.c
+index e000126..ff08874 100644
+--- a/bsd/miscfs/mockfs/mockfs_fsnode.c
++++ b/bsd/miscfs/mockfs/mockfs_fsnode.c
+@@ -85,7 +85,7 @@ mockfs_fsnode_create(mount_t mp, uint8_t type, mockfs_fsnode_t * fsnpp)
+ 		goto done;
+ 	}
+ 
+-	*fsnpp = kalloc_type(mockfs_fsnode_t, Z_WAITOK | Z_ZERO | Z_NOFAIL);
++	*fsnpp = kalloc_type(struct mockfs_fsnode, Z_WAITOK | Z_ZERO | Z_NOFAIL);
+ 	(*fsnpp)->size = new_size;
+ 	(*fsnpp)->type = type;
+ 	(*fsnpp)->mnt = mp;
+@@ -154,7 +154,7 @@ mockfs_fsnode_destroy(mockfs_fsnode_t fsnp)
+ 		}
+ 	}
+ 
+-	kfree_type(mockfs_fsnode_t, fsnp);
++	kfree_type(struct mockfs_fsnode, fsnp);
+ done:
+ 	return rvalue;
+ }
+@@ -345,7 +345,9 @@ mockfs_fsnode_vnode(mockfs_fsnode_t fsnp, vnode_t * vpp)
+ 				panic("mockfs_fsvnode failed to get ubc_mem_object for a new vnode");
+ 			}
+ 
+-			rvalue = pager_map_to_phys_contiguous(ubc_mem_object, 0, (mockfs_mnt->mockfs_memdev_base << PAGE_SHIFT), fsnp->size);
++			/* DKIOCGETMEMDEVINFO reports its physical base in 4 KiB pages. */
++			rvalue = pager_map_to_phys_contiguous(ubc_mem_object, 0,
++			    ((uint64_t)mockfs_mnt->mockfs_memdev_base << 12), fsnp->size);
+ 
+ 			if (rvalue) {
+ 				panic("mockfs_fsnode_vnode failed to create fictitious pages for a memory-backed device; rvalue = %d", rvalue);
+diff --git a/bsd/miscfs/mockfs/mockfs_vfsops.c b/bsd/miscfs/mockfs/mockfs_vfsops.c
+index 325bb06..09f9c18 100644
+--- a/bsd/miscfs/mockfs/mockfs_vfsops.c
++++ b/bsd/miscfs/mockfs/mockfs_vfsops.c
+@@ -102,7 +102,12 @@ mockfs_mountroot(mount_t mp, vnode_t rvp, __unused vfs_context_t ctx)
+ 		 * For the moment, we won't try to optimize when mi_phys is true.
+ 		 */
+ 		if (!mockfs_mount_data->mockfs_physical_memory) {
+-			mockfs_mount_data->mockfs_memory_backed = memdev_info.mi_mdev;
++			/*
++			 * The ADT RAMDisk is a virtual memory device. Only a physical
++			 * memory device can be mapped directly by the mockfs pager; a
++			 * virtual one must continue through the normal device I/O path.
++			 */
++			mockfs_mount_data->mockfs_memory_backed = memdev_info.mi_mdev && memdev_info.mi_phys;
+ 			mockfs_mount_data->mockfs_physical_memory = memdev_info.mi_phys;
+ 			mockfs_mount_data->mockfs_memdev_base = memdev_info.mi_base;
+ 			mockfs_mount_data->mockfs_memdev_size = memdev_info.mi_size;
+diff --git a/config/MASTER.arm64.x96sc2 b/config/MASTER.arm64.x96sc2
+index f8fee94..0781932 100644
+--- a/config/MASTER.arm64.x96sc2
++++ b/config/MASTER.arm64.x96sc2
+@@ -31,7 +31,7 @@
+ #  BSD_RELEASE =    [ BSD_BASE ]
+ #  BSD_DEV =        [ BSD_BASE config_vnguard ]
+ #  BSD_DEBUG =      [ BSD_BASE config_vnguard ]
+-#  FILESYS_BASE =   [ devfs fdesc fifo fs_compression config_protect config_mnt_rootsnap config_rosv_startup config_mount_vm config_mount_prebootrecovery config_basesystemroot config_fse quota namedstreams config_imgsrc_access config_triggers config_ext_resolver config_searchfs config_volfs config_appledouble nullfs config_mnt_suid config_firmlinks config_dataless_files config_union_mounts config_file_leases ]
++#  FILESYS_BASE =   [ devfs fdesc fifo mockfs fs_compression config_protect config_mnt_rootsnap config_rosv_startup config_mount_vm config_mount_prebootrecovery config_basesystemroot config_fse quota namedstreams config_imgsrc_access config_triggers config_ext_resolver config_searchfs config_volfs config_appledouble nullfs config_mnt_suid config_firmlinks config_dataless_files config_union_mounts config_file_leases ]
+ #  FILESYS_RELEASE= [ FILESYS_BASE ]
+ #  FILESYS_DEV =    [ FILESYS_BASE config_iocount_trace ]
+ #  FILESYS_DEBUG =  [ FILESYS_BASE config_iocount_trace ]
+diff --git a/iokit/Kernel/IOService.cpp b/iokit/Kernel/IOService.cpp
+index 8559a66..8b3e2e8 100644
+--- a/iokit/Kernel/IOService.cpp
++++ b/iokit/Kernel/IOService.cpp
+@@ -5126,7 +5126,19 @@ IOService::publishHiddenMedia(IOService * parent)
+ 	bool                wasHiding;
+ 
+ 	iomediaClass = OSMetaClass::getMetaClassWithName(gIOMediaKey);
++#if defined(ARM64_BOARD_CONFIG_X96SC2)
++	/* The P0 QEMU root is a RAMDisk and does not link IOStorageFamily. */
++	if (!iomediaClass) {
++		LOCKWRITENOTIFY();
++		if (gIOServiceHideIOMedia && !parent) {
++			gIOServiceHideIOMedia = false;
++		}
++		UNLOCKNOTIFY();
++		return;
++	}
++#else
+ 	assert(iomediaClass);
++#endif
+ 
+ 	LOCKWRITENOTIFY();
+ 	wasHiding = gIOServiceHideIOMedia;
+@@ -5179,9 +5191,16 @@ IOService::setRootMedia(IOService * root)
+ 	bool unhide;
+ 
+ 	ioblockstoragedriverClass = OSMetaClass::getMetaClassWithName(gIOBlockStorageDriverKey);
++#if defined(ARM64_BOARD_CONFIG_X96SC2)
++	/* A mockfs RAMDisk has no IOBlockStorageDriver provider chain. */
++	if (!ioblockstoragedriverClass) {
++		root = NULL;
++	}
++#else
+ 	assert(ioblockstoragedriverClass);
++#endif
+ 
+-	while (root) {
++	while (root && ioblockstoragedriverClass) {
+ 		if (root->metaCast(ioblockstoragedriverClass)) {
+ 			break;
+ 		}
+-- 
+2.43.0
+
