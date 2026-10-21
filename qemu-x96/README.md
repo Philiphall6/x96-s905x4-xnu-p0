@@ -26,6 +26,12 @@ peut pas valider le montage racine :
 X96_QEMU_SECONDS=30 ./qemu-x96/prepare-and-run.sh KERNEL NOUVEAU_DOSSIER
 ```
 
+Les arguments de démarrage QEMU contiennent `wdt=-1`. Ce réglage désactive
+uniquement les watchdogs de latence dans l'émulateur : une pause de
+l'ordonnanceur hôte peut sinon dépasser le seuil XNU de quelques
+millisecondes. L'ADT matériel et un futur essai RAM-only ne reçoivent pas ce
+réglage.
+
 Le dossier `runtime` contient la console série, les registres CPU, les deux
 framebuffers bruts et `result.json`. En cas de panique, `symbols.txt` associe
 automatiquement le PC, le LR et l'appelant aux symboles du noyau. La machine

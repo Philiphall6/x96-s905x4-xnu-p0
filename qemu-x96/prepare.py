@@ -163,7 +163,7 @@ def main() -> int:
     parser.add_argument("--ramdisk", type=Path)
     parser.add_argument(
         "--cmdline",
-        default="debug=0xc serial=3 cpus=1 keepsyms=1 -enable_kprintf_spam -noprogress rd=md0",
+        default="debug=0xc serial=3 cpus=1 keepsyms=1 -enable_kprintf_spam -noprogress wdt=-1 rd=md0",
     )
     args = parser.parse_args()
     kernel = args.kernel.read_bytes()
