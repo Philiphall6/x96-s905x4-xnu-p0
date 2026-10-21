@@ -69,13 +69,15 @@ without explicit licensing permission.
 - `fastboot-ram-probe/` wraps that probe in a reproducible Android boot v3
   container for a future RAM-only `fastboot boot`. Its kernel round-trip and
   unsigned AVB hash footer pass; no hardware command has been sent.
-- Full XNU compilation now succeeds on GitHub Actions with the Intel macOS 15
-  runner and Xcode 16.2. Run `39470717273` produced the ARM64 Mach-O executable
-  `kernel.development.x96sc2` (16,432,688 bytes). This is a development kernel,
-  not a bootable Android image and not a Burn Tool image.
-- The next gate is to package only the test dependencies needed to start this
-  compiled kernel under QEMU with the QEMU ADT. No X96 hardware boot is
-  authorized by this compilation result alone.
+- Full XNU compilation succeeds on GitHub Actions with the Intel macOS 15
+  runner and Xcode 16.2. Run `39553350284` produced the current ARM64 Mach-O
+  development kernel.
+- The current kernel boots for 150 seconds under QEMU, mounts its `mockfs`
+  RAMDisk, executes the signed minimal `/sbin/launchd` as PID 1 and keeps its
+  heartbeat alive without a panic. See `QEMU-VALIDATION.md` for the exact
+  progression, hashes and archived evidence.
+- This QEMU result is not a bootable Android image or a Burn Tool image. It
+  authorizes no X96 flash and does not validate Amlogic hardware drivers.
 - The real Amlogic Android-boot shim is not implemented yet. No hardware boot
   will be attempted before live RAM, `CNTFRQ_EL0` and framebuffer measurements.
 

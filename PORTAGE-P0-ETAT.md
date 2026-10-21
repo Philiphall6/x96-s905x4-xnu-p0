@@ -1,6 +1,6 @@
 # État du portage XNU X96 — P0
 
-Date du point de contrôle : 2026-10-20
+Date du point de contrôle : 2026-10-21
 
 ## Résultat atteint
 
@@ -32,6 +32,10 @@ avoir modifié la box ni l'image Android stable :
   GitHub Actions Intel macOS 15 avec Xcode 16.2 ; l'exécutable obtenu est un
   Mach-O 64 bits ARM64. Le premier échec provenait uniquement de l'absence de
   capacité du runner macOS ARM64 et n'avait exécuté aucune étape du build.
+- le noyau final monte une racine RAMDisk `mockfs`, charge les fournisseurs
+  pthread, AES-CBC et SHA-256, puis exécute un init Mach-O signé comme PID 1 ;
+- le test QEMU final dure 150 secondes, ne panique pas et observe le heartbeat
+  utilisateur. Le détail reproductible est dans `QEMU-VALIDATION.md`.
 
 Le test QEMU termine avec le code 0 et affiche :
 
@@ -70,18 +74,18 @@ MEASUREMENT COMPLETE
 - branche XNU locale : `x96-s905x4`
 - commit XNU socle P0 : `1dcd589464c104b63c131128359e52a000f179cf`
 - commit XNU console UART : `91851b1261ba7b78366bd0909322953dc892f33e`
+- commit XNU AMFI minimal actuel : `1c97ee92e462078d779d6207297986e745230d05`
 - patch local : `out/source/0001-x96sc2-add-single-core-XNU-P0-target-with-GICv2.patch`
 - patch UART : `out/source/0002-x96sc2-add-firmware-configured-uart-console.patch`
 - bundle Git local : `out/source/xnu-x96sc2-p0.bundle`
-- build GitHub Actions réussi :
-  `https://github.com/Philiphall6/x96-s905x4-xnu-p0/actions/runs/39470717273`
-- commit du dépôt de build : `74b414a`
-- `kernel.development.x96sc2`
+- build QEMU/PID 1 GitHub Actions réussi :
+  `https://github.com/Philiphall6/x96-s905x4-xnu-p0/actions/runs/39553350284`
+- `kernel.development.x96sc2` validé sous QEMU
   - format : Mach-O 64 bits, ARM64, exécutable
-  - taille : `16432688` octets
-  - SHA-256 : `5bccf3a3aee242f24f4f075f1a6d38af09b698dbd1d26ed43996791812530ca1`
+  - taille : `16473840` octets
+  - SHA-256 : `cebaef8791c4219be8cc2ad36767cd66ae602735d2fe6b52b0f33659f26125e8`
 - archive GitHub `xnu-x96sc2-p0.zip`
-  - SHA-256 : `504370c318320c0c71485d7ebcee072faa63319387fd44b56862a2bae4977a09`
+  - SHA-256 : `09ad4576100d4a5248f0097d77b166f8db47e6f230e8d3f48cfec990b043c5ff`
 
 ## Ce qui n'est pas encore validé
 
@@ -99,16 +103,12 @@ Les ADT et valeurs framebuffer matériels portent donc explicitement le statut
 
 ## Prochaine porte de validation
 
-1. Emballer les dépendances de test, puis démarrer le noyau XNU compilé sous
-   QEMU GICv2 avec l'ADT QEMU et un ramdisk minimal.
-2. Capturer la première sortie série XNU et corriger le premier arrêt observé
-   sans masquer les erreurs du noyau.
-3. Entrer volontairement dans le Fastboot de la X96 puis exécuter uniquement
+1. Entrer volontairement dans le Fastboot de la X96 puis exécuter uniquement
    `fastboot-ram-probe/inspect-fastboot.sh` pour identifier l'appareil.
-4. Si le bootloader annonce une cible compatible, tester le shim uniquement
+2. Si le bootloader annonce une cible compatible, tester le shim uniquement
    par `fastboot boot`, jamais par `flash`, `update` ou écriture eMMC.
-5. Relever CurrentEL, `CNTFRQ_EL0`, MPIDR et le FDT vivant, puis remplacer
+3. Relever CurrentEL, `CNTFRQ_EL0`, MPIDR et le FDT vivant, puis remplacer
    toutes les valeurs provisoires avant le premier essai XNU réel.
 
 Le portage ne contient aucun contournement Apple ID, activation, SEP, FairPlay,
-DRM ou signature. L'objectif P0 reste une console noyau expérimentale.
+DRM ou contrôle de signature. L'objectif P0 reste une console noyau expérimentale.
