@@ -10,6 +10,7 @@
 /fastboot-ram-probe/out/
 /measure-shim/out/
 /preflight-qemu/out/
+/qemu-x96/out/
 
 # Python cache files.
 __pycache__/

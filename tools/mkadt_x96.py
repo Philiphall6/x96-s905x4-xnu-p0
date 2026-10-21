@@ -84,7 +84,7 @@ def node(name: str, props=(), children=()):
     return result
 
 
-def build(*, qemu: bool, seed: bytes):
+def build(*, qemu: bool, seed: bytes, ramdisk: tuple[int, int] | None = None):
     phandle_values = iter(range(1, 1000))
 
     def phandle():
@@ -115,6 +115,10 @@ def build(*, qemu: bool, seed: bytes):
             "amlogic,meson-uart",
         )
 
+    memory_map_props = [phandle()]
+    if ramdisk is not None:
+        memory_map_props.append(("RAMDisk", u64(*ramdisk)))
+
     chosen = node(
         "chosen",
         [
@@ -126,7 +130,7 @@ def build(*, qemu: bool, seed: bytes):
             ("firmware-version", cstr("x96-xnu-shim-p0")),
             ("system-firmware-version", cstr("x96-xnu-shim-p0")),
         ],
-        [node("memory-map", [phandle()])],
+        [node("memory-map", memory_map_props)],
     )
 
     # P0 is deliberately single-core.  Publishing the three stopped cores
@@ -233,6 +237,8 @@ def main() -> int:
     parser.add_argument("output", type=Path)
     parser.add_argument("--qemu", action="store_true")
     parser.add_argument("--dump", action="store_true")
+    parser.add_argument("--ramdisk-address", type=lambda value: int(value, 0))
+    parser.add_argument("--ramdisk-size", type=lambda value: int(value, 0))
     parser.add_argument(
         "--seed",
         default="x96-xnu-p0",
@@ -241,7 +247,19 @@ def main() -> int:
     args = parser.parse_args()
 
     seed = hashlib.sha512(args.seed.encode("utf-8")).digest()
-    tree = build(qemu=args.qemu, seed=seed)
+    if (args.ramdisk_address is None) != (args.ramdisk_size is None):
+        parser.error("--ramdisk-address and --ramdisk-size must be used together")
+    ramdisk = None
+    if args.ramdisk_address is not None:
+        if not args.qemu:
+            parser.error("a generated RAMDisk is restricted to the QEMU ADT")
+        if args.ramdisk_address & 0x3FFF or args.ramdisk_size <= 0 or args.ramdisk_size & 0x3FFF:
+            parser.error("RAMDisk address and size must be positive and 16 KiB aligned")
+        if not (QEMU_PHYS_BASE <= args.ramdisk_address and
+                args.ramdisk_address + args.ramdisk_size <= QEMU_PHYS_BASE + QEMU_MEM_SIZE):
+            parser.error("RAMDisk lies outside the QEMU managed RAM range")
+        ramdisk = (args.ramdisk_address, args.ramdisk_size)
+    tree = build(qemu=args.qemu, seed=seed, ramdisk=ramdisk)
     blob = adt.serialize(tree)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_bytes(blob)
