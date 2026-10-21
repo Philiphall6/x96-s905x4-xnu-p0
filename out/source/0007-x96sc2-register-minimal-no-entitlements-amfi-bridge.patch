@@ -1,0 +1,214 @@
+From 42ca377892fef5a5a6fbbbc848c090f134a99c22 Mon Sep 17 00:00:00 2001
+From: X96 XNU Port <x96-xnu-local@localhost>
+Date: Wed, 21 Oct 2026 05:49:17 +0000
+Subject: [PATCH] x96sc2: register minimal no-entitlements AMFI bridge
+
+---
+ bsd/conf/files              |   1 +
+ bsd/kern/x96_minimal_amfi.c | 169 ++++++++++++++++++++++++++++++++++++
+ config/MASTER.arm64.x96sc2  |   2 +
+ 3 files changed, 172 insertions(+)
+ create mode 100644 bsd/kern/x96_minimal_amfi.c
+
+diff --git a/bsd/conf/files b/bsd/conf/files
+index 480b84e..42db147 100644
+--- a/bsd/conf/files
++++ b/bsd/conf/files
+@@ -372,6 +372,7 @@ bsd/kern/bsd_init.c			standard
+ bsd/kern/kdebug_common.c		standard
+ bsd/kern/kdebug_triage.c		standard
+ bsd/kern/kdebug.c			standard
++bsd/kern/x96_minimal_amfi.c		optional X96SC2_MINIMAL_AMFI
+ bsd/kern/kern_acct.c			standard
+ bsd/kern/kern_aio.c			standard
+ bsd/kern/kern_authorization.c		standard
+diff --git a/bsd/kern/x96_minimal_amfi.c b/bsd/kern/x96_minimal_amfi.c
+new file mode 100644
+index 0000000..98c79db
+--- /dev/null
++++ b/bsd/kern/x96_minimal_amfi.c
+@@ -0,0 +1,169 @@
++/* SPDX-License-Identifier: APSL-2.0 */
++/*
++ * Minimal AMFI bridge for the standalone X96SC2 bring-up target.
++ *
++ * The open-source kernel expects an OSEntitlements interface while adding a
++ * validated code signature to a vnode.  The closed AMFI/CoreEntitlements
++ * implementation is not present here.  This bridge represents that state
++ * explicitly: it creates no entitlement object, every entitlement query is
++ * denied, and object-copy operations return NULL.  Signature structure and
++ * executable-page hash validation remain in the kernel and are not bypassed.
++ */
++
++#include <kern/startup.h>
++#include <libkern/amfi/amfi.h>
++#include <libkern/libkern.h>
++#include <mach/kern_return.h>
++
++static void
++x96_entitlements_invalidate(__unused void *entitlements)
++{
++}
++
++static void *
++x96_entitlements_as_dict(__unused void *entitlements)
++{
++	return NULL;
++}
++
++static bool
++x96_entitlements_get_transmuted(__unused void *entitlements,
++    const CS_GenericBlob **blob)
++{
++	if (blob != NULL) {
++		*blob = NULL;
++	}
++	return false;
++}
++
++static bool
++x96_entitlements_get_xml(__unused void *entitlements, CS_GenericBlob **blob)
++{
++	if (blob != NULL) {
++		*blob = NULL;
++	}
++	return false;
++}
++
++static bool
++x96_get_legacy_profile_exemptions(const uint8_t **profile, size_t *length)
++{
++	if (profile != NULL) {
++		*profile = NULL;
++	}
++	if (length != NULL) {
++		*length = 0;
++	}
++	return false;
++}
++
++static bool
++x96_get_udid(const uint8_t **udid, size_t *length)
++{
++	if (udid != NULL) {
++		*udid = NULL;
++	}
++	if (length != NULL) {
++		*length = 0;
++	}
++	return false;
++}
++
++static void *
++x96_query_context_to_object(__unused CEQueryContext_t context)
++{
++	return NULL;
++}
++
++static kern_return_t
++x96_adjust_with_monitor(void *entitlements, __unused CEQueryContext_t context,
++    __unused const void *monitor_object, __unused const char *identity,
++    __unused uint32_t code_signing_flags)
++{
++	return entitlements == NULL ? KERN_SUCCESS : KERN_NOT_SUPPORTED;
++}
++
++static kern_return_t
++x96_adjust_without_monitor(void *entitlements,
++    __unused struct cs_blob *code_signing_blob)
++{
++	return entitlements == NULL ? KERN_SUCCESS : KERN_NOT_SUPPORTED;
++}
++
++static kern_return_t
++x96_query_boolean(__unused const void *entitlements,
++    __unused const char *name)
++{
++	return KERN_DENIED;
++}
++
++static kern_return_t
++x96_query_boolean_with_proc(__unused const proc_t process,
++    __unused const char *name)
++{
++	return KERN_DENIED;
++}
++
++static kern_return_t
++x96_query_string(__unused const void *entitlements, __unused const char *name,
++    __unused const char *value)
++{
++	return KERN_DENIED;
++}
++
++static kern_return_t
++x96_query_string_with_proc(__unused const proc_t process,
++    __unused const char *name, __unused const char *value)
++{
++	return KERN_DENIED;
++}
++
++static kern_return_t
++x96_copy_object(__unused const void *entitlements, __unused const char *name,
++    void **object)
++{
++	if (object != NULL) {
++		*object = NULL;
++	}
++	return KERN_DENIED;
++}
++
++static kern_return_t
++x96_copy_object_with_proc(__unused const proc_t process,
++    __unused const char *name, void **object)
++{
++	if (object != NULL) {
++		*object = NULL;
++	}
++	return KERN_DENIED;
++}
++
++static const amfi_t x96_minimal_amfi = {
++	.OSEntitlements_invalidate = x96_entitlements_invalidate,
++	.OSEntitlements_asdict = x96_entitlements_as_dict,
++	.OSEntitlements_get_transmuted = x96_entitlements_get_transmuted,
++	.OSEntitlements_get_xml = x96_entitlements_get_xml,
++	.get_legacy_profile_exemptions = x96_get_legacy_profile_exemptions,
++	.get_udid = x96_get_udid,
++	.query_context_to_object = x96_query_context_to_object,
++	.OSEntitlements = {
++		.version = OSENTITLEMENTS_INTERFACE_VERSION,
++		.adjustContextWithMonitor = x96_adjust_with_monitor,
++		.adjustContextWithoutMonitor = x96_adjust_without_monitor,
++		.queryEntitlementBoolean = x96_query_boolean,
++		.queryEntitlementBooleanWithProc = x96_query_boolean_with_proc,
++		.queryEntitlementString = x96_query_string,
++		.queryEntitlementStringWithProc = x96_query_string_with_proc,
++		.copyEntitlementAsOSObject = x96_copy_object,
++		.copyEntitlementAsOSObjectWithProc = x96_copy_object_with_proc,
++	},
++};
++
++static void
++x96_minimal_amfi_register(void)
++{
++	amfi_interface_register(&x96_minimal_amfi);
++	printf("X96SC2 AMFI: minimal no-entitlements interface registered\n");
++}
++
++STARTUP(EARLY_BOOT, STARTUP_RANK_SECOND, x96_minimal_amfi_register);
+diff --git a/config/MASTER.arm64.x96sc2 b/config/MASTER.arm64.x96sc2
+index 0781932..6f59b40 100644
+--- a/config/MASTER.arm64.x96sc2
++++ b/config/MASTER.arm64.x96sc2
+@@ -111,5 +111,7 @@ options CONFIG_MACF_LAZY_VNODE_LABELS   # Turn on labels, don't preallocate
+ 
+ options CONFIG_HYPERVISOR_PUBLIC   # unrestricted entitlement for hypervisor
+ 
++options X96SC2_MINIMAL_AMFI       # no-entitlements AMFI bridge for standalone boot
++
+ options   CONFIG_RESLIDE_SHARED_CACHE		# <reslide_shared_cache>
+ options   CONFIG_KERNEL_TBI		# <kernel_tbi>
+-- 
+2.43.0
+

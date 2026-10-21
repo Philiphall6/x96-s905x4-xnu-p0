@@ -42,6 +42,8 @@ jobs:
              dxb/patches/0004-x96sc2-bearssl-aes.patch
           cp out/source/0006-x96sc2-use-built-in-sha256-for-libkern.patch \
              dxb/patches/0005-x96sc2-sha256.patch
+          cp out/source/0007-x96sc2-register-minimal-no-entitlements-amfi-bridge.patch \
+             dxb/patches/0006-x96sc2-minimal-amfi.patch
           sed -i '' \
             's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' \
             dxb/build.sh
