@@ -3,6 +3,7 @@ set -eu
 
 BASE="$(CDPATH= cd -- "$(dirname "$0")" && pwd)"
 PROJECT="$(CDPATH= cd -- "$BASE/.." && pwd)"
+RUN_SECONDS="${X96_QEMU_SECONDS:-150}"
 
 if [ "$#" -ne 2 ]; then
     echo "usage: $0 KERNEL_MACHO NEW_RUN_DIRECTORY" >&2
@@ -24,4 +25,4 @@ python3 "$PROJECT/tools/mkadt_x96.py" "$RUN/prepared/x96-qemu.adt" \
     --qemu --ramdisk-address 0x44000000 --ramdisk-size "$RAMDISK_SIZE"
 python3 "$BASE/prepare.py" "$KERNEL" "$RUN/prepared/x96-qemu.adt" \
     "$RUN/prepared" --ramdisk "$INIT"
-python3 "$BASE/run.py" "$RUN/prepared" "$RUN/runtime" --seconds 30
+python3 "$BASE/run.py" "$RUN/prepared" "$RUN/runtime" --seconds "$RUN_SECONDS"

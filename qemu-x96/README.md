@@ -18,6 +18,14 @@ Lancer un essai dans un nouveau dossier :
     qemu-x96/out/run-0002-mockfs
 ```
 
+Le test dure 150 secondes par défaut : XNU attend environ 30 secondes pendant
+l'initialisation RTC avant de poursuivre BSD. Pour un diagnostic court qui ne
+peut pas valider le montage racine :
+
+```sh
+X96_QEMU_SECONDS=30 ./qemu-x96/prepare-and-run.sh KERNEL NOUVEAU_DOSSIER
+```
+
 Le dossier `runtime` contient la console série, les registres CPU, les deux
 framebuffers bruts et `result.json`. La machine QEMU possède 3 Gio uniquement
 pour couvrir le framebuffer précoce provisoire à `0xdff80000`; les `boot_args`

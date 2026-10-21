@@ -67,7 +67,7 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("prepared", type=Path)
     parser.add_argument("output", type=Path)
-    parser.add_argument("--seconds", type=float, default=30)
+    parser.add_argument("--seconds", type=float, default=150)
     args = parser.parse_args()
     if args.output.exists():
         parser.error(f"refusing to overwrite existing output directory: {args.output}")
