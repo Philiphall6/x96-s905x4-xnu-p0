@@ -36,6 +36,10 @@ jobs:
              dxb/patches/0003-x96sc2-libpthread-stage.sh
           cp out/source/0004-x96sc2-link-matching-libpthread-kernel-provider.patch \
              dxb/patches/0003-x96sc2-libpthread.patch
+          cp out/source/0005-stage-x96sc2-bearssl-aes.sh \
+             dxb/patches/0004-x96sc2-bearssl-aes-stage.sh
+          cp out/source/0005-x96sc2-add-portable-bearssl-aes-cbc-provider.patch \
+             dxb/patches/0004-x96sc2-bearssl-aes.patch
           sed -i '' \
             's/ARCHS="x86_64 arm64e" VALID_ARCHS="x86_64 arm64e"/ARCHS="x86_64 arm64e arm64" VALID_ARCHS="x86_64 arm64e arm64"/' \
             dxb/build.sh
